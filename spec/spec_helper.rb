@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'debug'
 require 'tmpdir'
 require 'libcodeowners'
 require_relative 'support/application_fixtures'
@@ -19,7 +20,7 @@ RSpec.configure do |config|
 
   config.before do |c|
     unless c.metadata[:do_not_bust_cache]
-      Libcodeowners.bust_caches!
+      Libcodeowners.bust_cache!
       CodeTeams.bust_caches!
       allow(CodeTeams::Plugin).to receive(:registry).and_return({})
     end

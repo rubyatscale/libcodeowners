@@ -16,7 +16,10 @@ RSpec.describe Libcodeowners do
       end
 
       context 'with non-empty application' do
-        before { create_non_empty_application }
+        before do
+          create_non_empty_application
+          RustCodeOwners.generate_and_validate
+        end
 
         context 'when no ownership is found' do
           let(:file_path) { 'app/madeup/file.rb' }
@@ -38,11 +41,51 @@ RSpec.describe Libcodeowners do
             expect(subject).to eq CodeTeams.find('Bar')
           end
         end
+
+        context 'when ownership is found but team is not found' do
+          let(:file_path) { 'packs/my_pack/owned_file.rb' }
+          before do
+            allow(RustCodeOwners).to receive(:for_file).and_return({ team_name: 'Made Up Team' })
+          end
+
+          it 'raises an error' do
+            expect { subject }.to raise_error(StandardError, /Could not find team with name: `Made Up Team`. Make sure the team is one of/)
+          end
+        end
       end
     end
   end
 
-  describe '.for_class'
+  describe '.for_class' do
+    subject { described_class.for_class(klass) }
+
+    let(:klass) do
+      described_class
+    end
+    let(:file_path) { 'packs/my_pack/owned_file.rb' }
+
+    before do
+      allow(Libcodeowners::FilePathFinder).to receive(:path_from_klass).and_return(file_path)
+    end
+
+    context 'when the klass path is found' do
+      before do
+        create_non_empty_application
+        RustCodeOwners.generate_and_validate
+      end
+
+      it 'returns the correct team' do
+        expect(subject).to eq CodeTeams.find('Bar')
+      end
+    end
+
+    context 'when the klass path is not found' do
+      let(:file_path) { nil }
+      it 'returns nil' do
+        expect(subject).to be_nil
+      end
+    end
+  end
   describe '.for_package'
   describe '.for_backtrace'
   describe '.first_owned_file_for_backtrace'

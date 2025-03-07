@@ -1,7 +1,7 @@
 use std::{env, path::PathBuf};
 
 use codeowners::runner::{self, RunConfig};
-use magnus::{function, prelude::*, Error, Ruby, Value};
+use magnus::{Error, Ruby, Value, function, prelude::*};
 use serde::{Deserialize, Serialize};
 use serde_magnus::serialize;
 
@@ -13,23 +13,40 @@ pub struct Team {
 
 fn for_file(file_path: String) -> Result<Option<Value>, Error> {
     let run_config = build_run_config();
-    let result = runner::team_for_file_from_codeowners(&run_config, &file_path);
 
-    match result {
+    match runner::team_for_file_from_codeowners(&run_config, &file_path) {
         Ok(Some(team_rs)) => {
-            let team =Team {
+            let team = Team {
                 team_name: team_rs.name,
                 team_config_yml: team_rs.path.to_string_lossy().to_string(),
             };
             let serialized: Value = serialize(&team)?;
             Ok(Some(serialized))
         }
-        Ok(None) => {
-            Ok(None)
-        }
-        Err(e) => {
-            Err(Error::new(magnus::exception::runtime_error(), e.to_string()))
-        }
+        Ok(None) => Ok(None),
+        Err(e) => Err(Error::new(
+            magnus::exception::runtime_error(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn generate_and_validate() -> Result<Value, Error> {
+    let run_config = build_run_config();
+    let run_result = runner::generate_and_validate(&run_config, vec![]);
+    if run_result.validation_errors.len() > 0 {
+        Err(Error::new(
+            magnus::exception::runtime_error(),
+            run_result.validation_errors.join("\n"),
+        ))
+    } else if run_result.io_errors.len() > 0 {
+        Err(Error::new(
+            magnus::exception::runtime_error(),
+            run_result.io_errors.join("\n"),
+        ))
+    } else {
+        let serialized: Value = serialize(&run_result.info_messages)?;
+        Ok(serialized)
     }
 }
 
@@ -53,6 +70,19 @@ fn build_run_config() -> RunConfig {
 fn init(ruby: &Ruby) -> Result<(), Error> {
     let module = ruby.define_module("RustCodeOwners")?;
     module.define_singleton_method("for_file", function!(for_file, 1))?;
+    module.define_singleton_method("generate_and_validate", function!(generate_and_validate, 0))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_for_file() {
+        set_current_dir("tests/fixtures/valid_project");
+        let result = generate_and_validate();
+        assert!(result.is_ok());
+    }
 }

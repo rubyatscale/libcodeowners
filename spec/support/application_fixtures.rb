@@ -26,6 +26,7 @@ RSpec.shared_context 'application fixtures' do
 
     write_file('packs/my_pack/owned_file.rb', <<~CONTENTS)
       # @team Bar
+      class OwnedFile; end
     CONTENTS
 
     write_file('directory/owner/.codeowner', <<~CONTENTS)
