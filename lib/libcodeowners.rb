@@ -3,6 +3,7 @@
 # typed: strict
 
 require 'code_teams'
+require 'packs-specification'
 require 'sorbet-runtime'
 require_relative 'libcodeowners/file_path_team_cache'
 require_relative 'libcodeowners/version'
@@ -39,6 +40,14 @@ module Libcodeowners
     return nil if file_path.nil?
 
     for_file(file_path)
+  end
+
+  sig { params(package: Packs::Pack).returns(T.nilable(::CodeTeams::Team)) }
+  def for_package(package)
+    owner_name = package.raw_hash['owner'] || package.metadata['owner']
+    return nil if owner_name.nil?
+
+    find_team!(owner_name)
   end
 
   sig { void }

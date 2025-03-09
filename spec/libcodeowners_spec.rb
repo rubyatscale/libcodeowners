@@ -74,6 +74,11 @@ RSpec.describe Libcodeowners do
         RustCodeOwners.generate_and_validate
       end
 
+      it 'calls for_file with the correct file path' do
+        subject
+        expect(Libcodeowners::FilePathFinder).to have_received(:path_from_klass).with(klass)
+      end
+
       it 'returns the correct team' do
         expect(subject).to eq CodeTeams.find('Bar')
       end
@@ -86,7 +91,46 @@ RSpec.describe Libcodeowners do
       end
     end
   end
-  describe '.for_package'
+
+  describe '.for_package' do
+    subject { described_class.for_package(package) }
+
+    let(:package_yml_path) { 'packs/my_pack/package.yml' }
+
+    before do
+      create_non_empty_application
+      write_file(package_yml_path, raw_hash.to_yaml)
+    end
+
+    let(:package) do
+      Packs::Pack.from(Pathname.new(package_yml_path).realpath)
+    end
+
+    context 'with owner set' do
+      let(:raw_hash) { { 'owner' => 'Bar' } }
+
+      it 'returns the correct team' do
+        expect(subject).to eq CodeTeams.find('Bar')
+      end
+    end
+
+    context 'with metadata owner set' do
+      let(:raw_hash) { { 'metadata' => { 'owner' => 'Bar' } } }
+
+      it 'returns the correct team' do
+        expect(subject).to eq CodeTeams.find('Bar')
+      end
+    end
+
+    context 'with no owner set' do
+      let(:raw_hash) { {} }
+
+      it 'returns nil' do
+        expect(subject).to be_nil
+      end
+    end
+  end
+
   describe '.for_backtrace'
   describe '.first_owned_file_for_backtrace'
 end
