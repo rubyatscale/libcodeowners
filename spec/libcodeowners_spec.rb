@@ -131,6 +131,61 @@ RSpec.describe Libcodeowners do
     end
   end
 
-  describe '.for_backtrace'
-  describe '.first_owned_file_for_backtrace'
+  describe '.for_backtrace' do
+    before do
+      create_files_with_defined_classes
+      write_configuration
+      RustCodeOwners.generate_and_validate
+    end
+
+    context 'excluded_teams is not passed in as an input parameter' do
+      it 'finds the right team' do
+        expect { MyFile.raise_error }.to raise_error do |ex|
+          expect(described_class.for_backtrace(ex.backtrace)).to eq CodeTeams.find('Bar')
+        end
+      end
+    end
+
+    context 'excluded_teams is passed in as an input parameter' do
+      it 'ignores the first part of the stack trace and finds the next viable owner' do
+        expect { MyFile.raise_error }.to raise_error do |ex|
+          team_to_exclude = CodeTeams.find('Bar')
+          expect(described_class.for_backtrace(ex.backtrace, excluded_teams: [team_to_exclude])).to eq CodeTeams.find('Foo')
+        end
+      end
+    end
+  end
+
+  describe '.first_owned_file_for_backtrace' do
+    before do
+      write_configuration
+      create_files_with_defined_classes
+      RustCodeOwners.generate_and_validate
+    end
+
+    context 'excluded_teams is not passed in as an input parameter' do
+      it 'finds the right team' do
+        expect { MyFile.raise_error }.to raise_error do |ex|
+          expect(described_class.first_owned_file_for_backtrace(ex.backtrace)).to eq [CodeTeams.find('Bar'), 'app/my_error.rb']
+        end
+      end
+    end
+
+    context 'excluded_teams is not passed in as an input parameter' do
+      it 'finds the right team' do
+        expect { MyFile.raise_error }.to raise_error do |ex|
+          team_to_exclude = CodeTeams.find('Bar')
+          expect(described_class.first_owned_file_for_backtrace(ex.backtrace, excluded_teams: [team_to_exclude])).to eq [CodeTeams.find('Foo'), 'app/my_file.rb']
+        end
+      end
+    end
+
+    context 'when nothing is owned' do
+      it 'returns nil' do
+        expect { raise 'opsy' }.to raise_error do |ex|
+          expect(described_class.first_owned_file_for_backtrace(ex.backtrace)).to be_nil
+        end
+      end
+    end
+  end
 end

@@ -105,10 +105,14 @@ RSpec.shared_context 'application fixtures' do
 
     write_file('config/teams/foo.yml', <<~CONTENTS)
       name: Foo
+      github:
+        team: '@MyOrg/foo-team'
     CONTENTS
 
     write_file('config/teams/bar.yml', <<~CONTENTS)
       name: Bar
+      github:
+        team: '@MyOrg/bar-team'
     CONTENTS
 
     # Some of the tests use the `SequoiaTree` constant. Since the implementation leverages:

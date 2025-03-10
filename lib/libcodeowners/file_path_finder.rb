@@ -22,5 +22,42 @@ module Libcodeowners
     rescue NameError
       nil
     end
+
+    sig { params(backtrace: T.nilable(T::Array[String])).returns(T::Enumerable[String]) }
+    def from_backtrace(backtrace)
+      return [] unless backtrace
+
+      # The pattern for a backtrace hasn't changed in forever and is considered
+      # stable: https://github.com/ruby/ruby/blob/trunk/vm_backtrace.c#L303-L317
+      #
+      # This pattern matches a line like the following:
+      #
+      #   ./app/controllers/some_controller.rb:43:in `block (3 levels) in create'
+      #
+      backtrace_line = if RUBY_VERSION >= '3.4.0'
+                         %r{\A(#{Pathname.pwd}/|\./)?
+                             (?<file>.+)       # Matches 'app/controllers/some_controller.rb'
+                             :
+                             (?<line>\d+)      # Matches '43'
+                             :in\s
+                             '(?<function>.*)' # Matches "`block (3 levels) in create'"
+                           \z}x
+                       else
+                         %r{\A(#{Pathname.pwd}/|\./)?
+                             (?<file>.+)       # Matches 'app/controllers/some_controller.rb'
+                             :
+                             (?<line>\d+)      # Matches '43'
+                             :in\s
+                             `(?<function>.*)' # Matches "`block (3 levels) in create'"
+                           \z}x
+                       end
+
+      backtrace.lazy.filter_map do |line|
+        match = line.match(backtrace_line)
+        next unless match
+
+        T.must(match[:file])
+      end
+    end
   end
 end
